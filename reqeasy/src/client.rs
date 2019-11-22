@@ -109,13 +109,20 @@ pub fn get(url: &str) -> Result<Response> {
 }
 
 
-#[test]
-fn test_get_google() {
-    let r = get("http://google.com/").unwrap();
-    assert_eq!(r.status_code, 301);
-    assert_eq!(r.headers["Location"], "http://www.google.com/");
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let r = get("http://www.google.com/").unwrap();
-    assert_eq!(r.status_code, 200);
-    assert_eq!(r.headers["Content-Type"], "text/html; charset=ISO-8859-1");
+    #[test]
+    fn can_get_google() -> Result<()> {
+        let r = get("http://google.com")?;
+        assert_eq!(r.status_code, 301);
+        assert_eq!(r.headers["Location"], "http://www.google.com/");
+
+        let r = get("http://www.google.com/")?;
+        assert_eq!(r.status_code, 200);
+        assert_eq!(r.headers["Content-Type"], "text/html; charset=ISO-8859-1");
+
+        Ok(())
+    }
 }

@@ -1,2 +1,2 @@
 [workspace]
-members = ["reqeasy"]
+members = ["reqeasy", "simple_regex"]
