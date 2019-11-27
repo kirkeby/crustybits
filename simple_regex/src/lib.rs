@@ -319,4 +319,13 @@ mod tests {
         );
         Ok(())
     }
+
+    #[test]
+    fn backtracking() -> Result<()> {
+        assert_eq!(
+            Re::compile("[ab]*ab")?.matches("ababab").unwrap().matched,
+            "ababab",
+        );
+        Ok(())
+    }
 }
