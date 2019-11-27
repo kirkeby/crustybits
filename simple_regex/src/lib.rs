@@ -72,10 +72,11 @@ impl Re {
             }
             Pattern::Char(_) => None,
             Pattern::Optional(ref p) => {
-                match self.match_head(Search { p: p, s: search.s }) {
-                    Some(m) => Some(m),
-                    None => Some(Search { p: &search.p[1..], s: search.s }),
-                }
+                let s = match self.match_head(Search { p: p, s: search.s }) {
+                    Some(Search { s, .. }) => s,
+                    None => search.s,
+                };
+                Some(Search { p: &search.p[1..], s: s })
             }
         }
     }
