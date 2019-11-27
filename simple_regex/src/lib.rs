@@ -4,17 +4,22 @@ pub struct Error {}
 pub type Result<T> = std::result::Result<T, Error>;
 
 
-enum Letter {
+enum Pattern {
+    Any,
+    Char(char),
     //AnchorStart,
     //AnchorEnd,
-    Any,
-    Optional(Box<Letter>),
-    Many(Box<Letter>),
-    Char(char),
+    //Many(Box<Pattern>),
+    Optional(Vec<Pattern>),
+}
+
+struct Search<'a> {
+    s: &'a [char],
+    p: &'a [Pattern],
 }
 
 pub struct Re {
-    compiled: Vec<Letter>,
+    compiled: Vec<Pattern>,
 }
 
 impl Re {
@@ -22,13 +27,13 @@ impl Re {
         let mut letters = Vec::new();
         for c in re.chars() {
             let next = match c {
-                //'^' => Letter::AnchorStart,
-                //'$' => Letter::AnchorEnd,
+                //'^' => Pattern::AnchorStart,
+                //'$' => Pattern::AnchorEnd,
                 '|' | '\\' | '[' | ']' | '(' | ')' => unimplemented!(),
-                '.' => Letter::Any,
-                '?' => Letter::Optional(Box::new(letters.pop().unwrap())),
-                '*' => Letter::Many(Box::new(letters.pop().unwrap())),
-                _ => Letter::Char(c),
+                '.' => Pattern::Any,
+                '?' => Pattern::Optional(vec![letters.pop().unwrap()]),
+                //'*' => Pattern::Many(Box::new(letters.pop().unwrap())),
+                _ => Pattern::Char(c),
             };
             letters.push(next);
         }
@@ -37,27 +42,46 @@ impl Re {
 
     pub fn matches(&self, s: &str) -> bool {
         let s = s.chars().collect::<Vec<_>>();
-        self.match_at(&self.compiled, &s)
+        self.match_at(Search { s: &s, p: &self.compiled })
     }
 
-    /// a: offset into self.compiled
-    /// n: offset into s
-    fn match_at(&self, r: &[Letter], s: &[char]) -> bool {
-        if r.len() == 0 {
+    fn match_at(&self, search: Search) -> bool {
+        if search.p.len() == 0 {
             return true
         }
-        if s.len() == 0 {
+        else if search.s.len() == 0 {
             return false
         }
-        match r[0] {
-            Letter::Any => self.match_at(&r[1..], &s[1..]),
-            Letter::Char(c) => c == s[0] && self.match_at(&r[1..], &s[1..]),
-            Letter::Many(ref next) => self.match_many(next, &r[1..], &s[1..]),
-            Letter::Optional(_) => unimplemented!(),
+        else {
+            match self.match_head(search) {
+                None => false,
+                Some(search) => self.match_at(search),
+            }
         }
     }
 
-    fn match_many(&self, l: &Box<Letter>, r: &[Letter], s: &[char]) -> bool {
+    fn match_head<'a>(&self, search: Search<'a>) -> Option<Search<'a>> {
+        assert!(search.p.len() != 0);
+        assert!(search.s.len() != 0);
+        match search.p[0] {
+            Pattern::Any => {
+                Some(Search { p: &search.p[1..], s: &search.s[1..] })
+            }
+            Pattern::Char(c) if c == search.s[0] => {
+                Some(Search { p: &search.p[1..], s: &search.s[1..] })
+            }
+            Pattern::Char(_) => None,
+            Pattern::Optional(ref p) => {
+                match self.match_head(Search { p: p, s: search.s }) {
+                    Some(m) => Some(m),
+                    None => Some(Search { p: &search.p[1..], s: search.s }),
+                }
+            }
+        }
+    }
+
+    /*
+    fn match_many(&self, l: &Box<Pattern>, r: &[Pattern], s: &[char]) -> bool {
         // FIXME - make me greedy?
         loop {
             if self.match_at(r, s) {
@@ -65,6 +89,7 @@ impl Re {
             }
         }
     }
+    */
 }
 
 
@@ -82,6 +107,16 @@ mod tests {
     }
 
     #[test]
+    fn match_qmark() -> Result<()> {
+        let re = Re::compile("Hel?o,")?;
+        assert!(re.matches("Heo,"));
+        assert!(re.matches("Helo,"));
+        assert!(! re.matches("Hello,"));
+        Ok(())
+    }
+
+    /*
+    #[test]
     fn string_match_star() -> Result<()> {
         let re = Re::compile("Hel*o,")?;
         assert!(re.matches("Heo,"));
@@ -91,7 +126,6 @@ mod tests {
         Ok(())
     }
 
-    /*
     #[test]
     fn anchor_match_works() -> Result<()> {
         let re = Re::compile("^Hello, World!$")?;
