@@ -148,18 +148,24 @@ impl Re {
     }
 
     fn match_many<'a>(&self, r: &[Pattern], p: &[Pattern], s: State<'a>) -> Option<State<'a>> {
-        // FIXME - can we avoid this clone war?
-        if let Some(t) = self.match_at(r, s.clone()) {
-            if let Some(u) = self.match_many(r, p, t.clone()) {
-                return Some(u);
-            }
+        let mut s = s;
+        let mut stack = Vec::new();
+
+        // FIXME - cheaper-to-clone state w/o captures?
+        stack.push(s.clone());
+        while let Some(t) = self.match_at(r, s.clone()) {
+            stack.push(t.clone());
+            s = t;
+        }
+        dbg!(&stack, p, r);
+
+        while stack.len() > 0{
             if self.match_at(p, s.clone()).is_some() {
                 return Some(s)
             }
+            s = stack.pop().unwrap()
         }
-        if self.match_at(p, s.clone()).is_some() {
-            return Some(s)
-        }
+
         None
     }
 }
@@ -326,8 +332,11 @@ mod tests {
     #[test]
     fn backtracking() -> Result<()> {
         assert_eq!(
-            Re::compile("[ab]*ab")?.matches("ababab").unwrap().matched,
-            "ababab",
+            Re::compile("a*aaa")?.matches("aaaaaaa"),
+            Some(Match {
+                matched: "aaaaaaa".into(),
+                captured: vec![],
+            })
         );
         assert_eq!(
             Re::compile("(a*)(aaa)")?.matches("aaaaaaa"),
@@ -335,6 +344,10 @@ mod tests {
                 matched: "aaaaaaa".into(),
                 captured: vec!["aaaa".into(), "aaa".into()],
             })
+        );
+        assert_eq!(
+            Re::compile("[ab]*ab")?.matches("ababab").unwrap().matched,
+            "ababab",
         );
         Ok(())
     }
