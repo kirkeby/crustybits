@@ -9,8 +9,9 @@ enum Pattern {
     Char(char),
     AnchorStart,
     AnchorEnd,
-    Many(Vec<Pattern>),
+    Star(Vec<Pattern>),
     Optional(Vec<Pattern>),
+    Capture(Vec<Pattern>),
 }
 
 pub struct Re {
@@ -20,14 +21,25 @@ pub struct Re {
 impl Re {
     pub fn compile(re: &str) -> Result<Self> {
         let mut letters = Vec::new();
-        for c in re.chars() {
+        let mut chars = re.chars();
+        while let Some(c) = chars.next() {
             let next = match c {
                 '^' => Pattern::AnchorStart,
                 '$' => Pattern::AnchorEnd,
-                '|' | '\\' | '[' | ']' | '(' | ')' => unimplemented!(),
+                '|' | '\\' | '[' | ']' => unimplemented!(),
+                '(' => {
+                    let mut inner = Vec::new();
+                    while let Some(c) = chars.next() {
+                        inner.push(c);
+                        if c == ')' { break }
+                    }
+                    assert!(inner[inner.len()-1] == ')');
+                    let s = inner.into_iter().collect::<String>();
+                    Pattern::Capture(Re::compile(&s)?.compiled)
+                }
                 '.' => Pattern::Any,
                 '?' => Pattern::Optional(vec![letters.pop().unwrap()]),
-                '*' => Pattern::Many(vec![letters.pop().unwrap()]),
+                '*' => Pattern::Star(vec![letters.pop().unwrap()]),
                 _ => Pattern::Char(c),
             };
             letters.push(next);
@@ -80,9 +92,10 @@ impl Re {
                 };
                 Some(s)
             }
-            Pattern::Many(ref r) => {
+            Pattern::Star(ref r) => {
                 self.match_many(r, &p[1..], s)
             }
+            Pattern::Capture(_) => unimplemented!(),
         }
     }
 
@@ -135,6 +148,15 @@ mod tests {
     #[test]
     fn anchor_match_works() -> Result<()> {
         let re = Re::compile("^Hello, World!$")?;
+        assert!(re.matches("Hello, World!"));
+        assert!(! re.matches("Hello, "));
+        assert!(! re.matches("Hello, World!\r\n"));
+        Ok(())
+    }
+
+    #[test]
+    fn can_capture() -> Result<()> {
+        let re = Re::compile("(Hello), (World!)")?;
         assert!(re.matches("Hello, World!"));
         assert!(! re.matches("Hello, "));
         assert!(! re.matches("Hello, World!\r\n"));
