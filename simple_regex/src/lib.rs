@@ -3,7 +3,7 @@ pub struct Error {}
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-
+#[derive(Debug)]
 enum Pattern {
     Any,
     Char(char),
@@ -11,11 +11,6 @@ enum Pattern {
     //AnchorEnd,
     Many(Vec<Pattern>),
     Optional(Vec<Pattern>),
-}
-
-struct Search<'a> {
-    s: &'a [char],
-    p: &'a [Pattern],
 }
 
 pub struct Re {
@@ -42,55 +37,58 @@ impl Re {
 
     pub fn matches(&self, s: &str) -> bool {
         let s = s.chars().collect::<Vec<_>>();
-        self.match_at(Search { s: &s, p: &self.compiled })
+        self.match_at(&self.compiled, &s).is_some()
     }
 
-    fn match_at(&self, search: Search) -> bool {
-        if search.p.len() == 0 {
-            return true
+    fn match_at<'a>(&self, p: &[Pattern], s: &'a [char]) -> Option<&'a [char]> {
+        if p.len() == 0 {
+            return Some(s)
         }
-        else if search.s.len() == 0 {
-            return false
+        else if s.len() == 0 {
+            return None
         }
         else {
-            match self.match_head(search) {
-                None => false,
-                Some(search) => self.match_at(search),
+            match self.match_head(p, s) {
+                None => None,
+                Some(s) => self.match_at(&p[1..], s),
             }
         }
     }
 
-    fn match_head<'a>(&self, search: Search<'a>) -> Option<Search<'a>> {
-        assert!(search.p.len() != 0);
-        assert!(search.s.len() != 0);
-        match search.p[0] {
+    fn match_head<'a>(&self, p: &[Pattern], s: &'a [char]) -> Option<&'a [char]> {
+        assert!(p.len() != 0 && s.len() != 0);
+        match p[0] {
             Pattern::Any => {
-                Some(Search { p: &search.p[1..], s: &search.s[1..] })
+                Some(&s[1..])
             }
-            Pattern::Char(c) if c == search.s[0] => {
-                Some(Search { p: &search.p[1..], s: &search.s[1..] })
+            Pattern::Char(c) if c == s[0] => {
+                Some(&s[1..])
             }
             Pattern::Char(_) => None,
             Pattern::Optional(ref p) => {
-                let s = match self.match_head(Search { p: p, s: search.s }) {
-                    Some(Search { s, .. }) => s,
-                    None => search.s,
+                let s = match self.match_head(p, s) {
+                    Some(s) => s,
+                    None => s,
                 };
-                Some(Search { p: &search.p[1..], s: s })
+                Some(s)
+            }
+            Pattern::Many(ref r) => {
+                self.match_many(r, &p[1..], s)
             }
         }
     }
 
-    /*
-    fn match_many(&self, l: &Box<Pattern>, r: &[Pattern], s: &[char]) -> bool {
+    fn match_many<'a>(&self, r: &[Pattern], p: &[Pattern], s: &'a [char]) -> Option<&'a [char]> {
+        // FIXME - this is stupid inefficient, return (p, s)!
+        if self.match_at(p, s).is_some() {
+            return Some(s)
+        }
         // FIXME - make me greedy?
-        loop {
-            if self.match_at(r, s) {
-                return true;
-            }
+        match self.match_at(r, s) {
+            Some(t) => return self.match_many(r, p, t),
+            None => return None,
         }
     }
-    */
 }
 
 
@@ -116,7 +114,6 @@ mod tests {
         Ok(())
     }
 
-    /*
     #[test]
     fn string_match_star() -> Result<()> {
         let re = Re::compile("Hel*o,")?;
@@ -127,6 +124,7 @@ mod tests {
         Ok(())
     }
 
+    /*
     #[test]
     fn anchor_match_works() -> Result<()> {
         let re = Re::compile("^Hello, World!$")?;
