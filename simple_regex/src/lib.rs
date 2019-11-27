@@ -49,14 +49,26 @@ impl Re {
     }
 
     fn compile_bracket(chars: &mut std::str::Chars) -> Result<Pattern> {
+        let mut chars = Re::take_until(chars, ']')?.into_iter();
         let mut inner = Vec::new();
         let mut inverted = false;
         let mut first = true;
-        for c in Re::take_until(chars, ']')? {
+        while let Some(c) = chars.next() {
             match (first, c) {
-                (true, '^') => inverted = true,
-                (false, '-') => unimplemented!(),
-                (_ , c) => { first = false; inner.push(c); }
+                (true, '^') => {
+                    inverted = true;
+                }
+                (false, '-') => {
+                    if let Some(d) = chars.next() {
+                        inner.push(d);
+                    } else {
+                        inner.push('-');
+                    }
+                }
+                (_ , c) => {
+                    first = false;
+                    inner.push(c);
+                }
             }
         }
         Ok(Pattern::Bracket(inner.into_iter().collect(), inverted))
