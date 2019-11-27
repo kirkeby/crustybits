@@ -9,7 +9,7 @@ enum Pattern {
     Char(char),
     //AnchorStart,
     //AnchorEnd,
-    //Many(Box<Pattern>),
+    Many(Vec<Pattern>),
     Optional(Vec<Pattern>),
 }
 
@@ -32,7 +32,7 @@ impl Re {
                 '|' | '\\' | '[' | ']' | '(' | ')' => unimplemented!(),
                 '.' => Pattern::Any,
                 '?' => Pattern::Optional(vec![letters.pop().unwrap()]),
-                //'*' => Pattern::Many(Box::new(letters.pop().unwrap())),
+                '*' => Pattern::Many(vec![letters.pop().unwrap()]),
                 _ => Pattern::Char(c),
             };
             letters.push(next);
