@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 #[derive(Debug)]
 pub struct Error {}
 
@@ -12,6 +14,7 @@ enum Pattern {
     Star(Vec<Pattern>),
     Optional(Vec<Pattern>),
     Capture(Vec<Pattern>),
+    Bracket(HashSet<char>, bool),
 }
 
 pub struct Re {
@@ -24,19 +27,11 @@ impl Re {
         let mut chars = re.chars();
         while let Some(c) = chars.next() {
             let next = match c {
-                '|' | '\\' | '[' | ']' => unimplemented!(),
+                '|' | '\\' => unimplemented!(), // FIXME
                 '^' => Pattern::AnchorStart,
                 '$' => Pattern::AnchorEnd,
-                '(' => {
-                    let mut inner = Vec::new();
-                    while let Some(c) = chars.next() {
-                        inner.push(c);
-                        if c == ')' { break }
-                    }
-                    assert!(inner.pop() == Some(')'));
-                    let s = inner.into_iter().collect::<String>();
-                    Pattern::Capture(Re::compile(&s)?.compiled)
-                }
+                '[' => Re::compile_bracket(&mut chars)?,
+                '(' => Re::compile_capture(&mut chars)?,
                 '.' => Pattern::Any,
                 '?' => Pattern::Optional(vec![letters.pop().unwrap()]),
                 '*' => Pattern::Star(vec![letters.pop().unwrap()]),
@@ -45,6 +40,36 @@ impl Re {
             letters.push(next);
         }
         Ok(Re { compiled: letters })
+    }
+
+    fn compile_capture(chars: &mut std::str::Chars) -> Result<Pattern> {
+        let inner = Re::take_until(chars, ')')?;
+        let s = inner.into_iter().collect::<String>();
+        Ok(Pattern::Capture(Re::compile(&s)?.compiled))
+    }
+
+    fn compile_bracket(chars: &mut std::str::Chars) -> Result<Pattern> {
+        let mut inner = Vec::new();
+        let mut inverted = false;
+        let mut first = true;
+        for c in Re::take_until(chars, ']')? {
+            match (first, c) {
+                (true, '^') => inverted = true,
+                (false, '-') => unimplemented!(),
+                (_ , c) => { first = false; inner.push(c); }
+            }
+        }
+        Ok(Pattern::Bracket(inner.into_iter().collect(), inverted))
+    }
+
+    fn take_until(chars: &mut std::str::Chars, end: char) -> Result<Vec<char>> {
+        let mut inner = Vec::new();
+        while let Some(c) = chars.next() {
+            inner.push(c);
+            if c == end { break }
+        }
+        assert!(inner.pop() == Some(end)); // FIXME
+        Ok(inner)
     }
 
     pub fn matches(&self, s: &str) -> Option<Match> {
@@ -86,6 +111,9 @@ impl Re {
             Pattern::Any => Some(s.forward()),
             Pattern::Char(c) if c == s.peek() => Some(s.forward()),
             Pattern::Char(_) => None,
+            Pattern::Bracket(ref c, false) if c.contains(&s.peek()) => Some(s.forward()),
+            Pattern::Bracket(ref c, true) if !c.contains(&s.peek()) => Some(s.forward()),
+            Pattern::Bracket(_, _) => None,
             Pattern::Optional(ref p) => {
                 // FIXME - refactor to avoid clone?
                 let s = match self.match_head(p, s.clone()) {
@@ -109,7 +137,7 @@ impl Re {
         if self.match_at(p, s.clone()).is_some() {
             return Some(s)
         }
-        // FIXME - make me greedy?
+        // FIXME - make me greedy!
         match self.match_at(r, s) {
             Some(t) => return self.match_many(r, p, t),
             None => return None,
@@ -232,6 +260,47 @@ mod tests {
             })
         );
         assert!(re.matches("Hello, ").is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn bracket() -> Result<()> {
+        assert_eq!(
+            Re::compile("[abcdef]*$")?.matches("bacca").unwrap().matched,
+            "bacca",
+        );
+        assert!(Re::compile("[abcdef]*llo")?.matches("Hello").is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn inverted_bracket() -> Result<()> {
+        assert_eq!(
+            Re::compile("[^abc]*, ")?.matches("Hello, a").unwrap().matched,
+            "Hello, ",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn bracket_dash() -> Result<()> {
+        assert_eq!(
+            Re::compile("[0-9]* Hell")?.matches("42 Hellos").unwrap().matched,
+            "42 Hell",
+        );
+        assert_eq!(
+            Re::compile("[^0-9]*, ")?.matches("Hello, 42").unwrap().matched,
+            "Hello, ",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn greedy_star() -> Result<()> {
+        assert_eq!(
+            Re::compile("[0-9]*")?.matches("42 Hellos").unwrap().matched,
+            "42",
+        );
         Ok(())
     }
 }
