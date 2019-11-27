@@ -148,16 +148,19 @@ impl Re {
     }
 
     fn match_many<'a>(&self, r: &[Pattern], p: &[Pattern], s: State<'a>) -> Option<State<'a>> {
-        // FIXME - refactor to avoid clone?
-        // FIXME - this is stupid inefficient, return (p, s)!
+        // FIXME - can we avoid this clone war?
+        if let Some(t) = self.match_at(r, s.clone()) {
+            if let Some(u) = self.match_many(r, p, t.clone()) {
+                return Some(u);
+            }
+            if self.match_at(p, s.clone()).is_some() {
+                return Some(s)
+            }
+        }
         if self.match_at(p, s.clone()).is_some() {
             return Some(s)
         }
-        // FIXME - make me greedy!
-        match self.match_at(r, s) {
-            Some(t) => return self.match_many(r, p, t),
-            None => return None,
-        }
+        None
     }
 }
 
@@ -325,6 +328,13 @@ mod tests {
         assert_eq!(
             Re::compile("[ab]*ab")?.matches("ababab").unwrap().matched,
             "ababab",
+        );
+        assert_eq!(
+            Re::compile("(a*)(aaa)")?.matches("aaaaaaa"),
+            Some(Match {
+                matched: "aaaaaaa".into(),
+                captured: vec!["aaaa".into(), "aaa".into()],
+            })
         );
         Ok(())
     }
