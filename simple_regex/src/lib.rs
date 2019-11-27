@@ -3,12 +3,12 @@ pub struct Error {}
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum Pattern {
     Any,
     Char(char),
-    //AnchorStart,
-    //AnchorEnd,
+    AnchorStart,
+    AnchorEnd,
     Many(Vec<Pattern>),
     Optional(Vec<Pattern>),
 }
@@ -22,8 +22,8 @@ impl Re {
         let mut letters = Vec::new();
         for c in re.chars() {
             let next = match c {
-                //'^' => Pattern::AnchorStart,
-                //'$' => Pattern::AnchorEnd,
+                '^' => Pattern::AnchorStart,
+                '$' => Pattern::AnchorEnd,
                 '|' | '\\' | '[' | ']' | '(' | ')' => unimplemented!(),
                 '.' => Pattern::Any,
                 '?' => Pattern::Optional(vec![letters.pop().unwrap()]),
@@ -37,27 +37,35 @@ impl Re {
 
     pub fn matches(&self, s: &str) -> bool {
         let s = s.chars().collect::<Vec<_>>();
-        self.match_at(&self.compiled, &s).is_some()
+        let mut p = &self.compiled[..];
+        if p[0] == Pattern::AnchorStart {
+            p = &p[1..];
+        }
+        self.match_at(p, &s).is_some()
     }
 
     fn match_at<'a>(&self, p: &[Pattern], s: &'a [char]) -> Option<&'a [char]> {
         if p.len() == 0 {
             return Some(s)
         }
-        else if s.len() == 0 {
+
+        if s.len() == 0 {
+            if p == &[Pattern::AnchorEnd] {
+                return Some(s)
+            }
             return None
         }
-        else {
-            match self.match_head(p, s) {
-                None => None,
-                Some(s) => self.match_at(&p[1..], s),
-            }
+
+        match self.match_head(p, s) {
+            None => None,
+            Some(s) => self.match_at(&p[1..], s),
         }
     }
 
     fn match_head<'a>(&self, p: &[Pattern], s: &'a [char]) -> Option<&'a [char]> {
-        assert!(p.len() != 0 && s.len() != 0);
         match p[0] {
+            Pattern::AnchorStart => None,
+            Pattern::AnchorEnd => None,
             Pattern::Any => {
                 Some(&s[1..])
             }
@@ -124,7 +132,6 @@ mod tests {
         Ok(())
     }
 
-    /*
     #[test]
     fn anchor_match_works() -> Result<()> {
         let re = Re::compile("^Hello, World!$")?;
@@ -133,5 +140,4 @@ mod tests {
         assert!(! re.matches("Hello, World!\r\n"));
         Ok(())
     }
-    */
 }

@@ -5,4 +5,4 @@ authors = ["Sune Kirkeby <mig@ibofobi.dk>"]
 edition = "2018"
 
 [dependencies]
-url = "2.1"
+simple_regex = { path = "../simple_regex" }

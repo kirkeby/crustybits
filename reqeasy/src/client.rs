@@ -1,6 +1,7 @@
 //! FIXME
 
 use crate::error::Result;
+use crate::url::Url;
 
 use std::io::prelude::*;
 
@@ -20,14 +21,13 @@ pub struct RequestBuilder {
 impl RequestBuilder {
     // FIXME remove unwraps
     pub fn from_url(url: &str) -> Result<Self> {
-        let url = ::url::Url::parse(url)?;
+        let url = Url::parse(url)?;
         // FIXME remove asserts; check other fields
         assert!(url.scheme() == "http");
-        assert!(url.query().is_none());
         Ok(RequestBuilder {
             method: "GET".into(),
             protocol: Protocol::HTTP,
-            host: url.host_str().unwrap().into(),
+            host: url.host().into(),
             path: url.path().into(),
         })
     }
