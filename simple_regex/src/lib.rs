@@ -60,9 +60,13 @@ impl Re {
                 }
                 (false, '-') => {
                     if let Some(d) = chars.next() {
-                        inner.push(d);
+                        let c = inner[inner.len()-1] as u32;
+                        let d = d as u32;
+                        for i in c..=d {
+                            inner.push(std::char::from_u32(i).unwrap());
+                        }
                     } else {
-                        inner.push('-');
+                        inner.push(c);
                     }
                 }
                 (_ , c) => {
