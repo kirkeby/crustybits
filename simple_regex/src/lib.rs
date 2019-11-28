@@ -1,3 +1,4 @@
+//FIXME NFA/DFA?
 use std::collections::HashSet;
 
 #[derive(Debug)]
@@ -157,7 +158,6 @@ impl Re {
             stack.push(t.clone());
             s = t;
         }
-        dbg!(&stack, p, r);
 
         while stack.len() > 0{
             if self.match_at(p, s.clone()).is_some() {

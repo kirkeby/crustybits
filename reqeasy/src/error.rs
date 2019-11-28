@@ -1,5 +1,6 @@
 #[derive(Debug)]
 pub struct Error {}
+// Box<Err>?!
 
 pub type Result<T> = std::result::Result<T, Error>;
 

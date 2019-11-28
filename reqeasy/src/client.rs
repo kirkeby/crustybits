@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn can_get_google() -> Result<()> {
-        let r = get("http://google.com")?;
+        let r = get("http://google.com").expect("get no www");
         assert_eq!(r.status_code, 301);
         assert_eq!(r.headers["Location"], "http://www.google.com/");
 
