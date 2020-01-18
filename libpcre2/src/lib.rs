@@ -142,6 +142,8 @@ impl MatchData {
         };
         wrap_errno(err)?;
 
+        // This is okay because pcre_substring_copy_bynumber_8 has initalized
+        // len + 1 bytes in buf.
         unsafe { buf.set_len(len); }
         Ok(String::from_utf8(buf).unwrap())
     }
