@@ -1,2 +1,2 @@
 [workspace]
-members = ["reqeasy", "simple_regex"]
+members = ["reqeasy", "simple_regex", "libpcre2"]
