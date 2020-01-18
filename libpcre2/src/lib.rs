@@ -85,7 +85,7 @@ impl Code {
         } else if result <= 0 {
             Err(Error { errno: result, offset: 0 })
         } else {
-            Ok(Some(Match { data: match_data }))
+            Ok(Some(Match { data: match_data, matches: result as usize }))
         }
     }
 }
@@ -100,11 +100,16 @@ impl Drop for Code {
 /// string.
 pub struct Match {
     data: MatchData,
+    matches: usize,
 }
 
 impl Match {
     pub fn group(&self, n: usize) -> Result<String> {
         self.data.group(n)
+    }
+
+    pub fn groups(&self) -> Result<Vec<String>> {
+        (1..self.matches).map(|n| self.group(n)).collect()
     }
 }
 
@@ -176,6 +181,7 @@ mod tests {
         let m = m.unwrap();
         assert_eq!(m.group(0)?, "Hello, World!");
         assert_eq!(m.group(1)?, "World");
+        assert_eq!(m.groups()?, vec!["World"]);
         Ok(())
     }
 }

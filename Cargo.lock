@@ -14,4 +14,7 @@ dependencies = [
 [[package]]
 name = "simple_regex"
 version = "0.1.0"
+dependencies = [
+ "libpcre2 0.1.0",
+]
 
