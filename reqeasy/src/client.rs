@@ -38,7 +38,7 @@ impl RequestBuilder {
 
     pub fn send(self) -> Result<Response> {
         let mut c = std::net::TcpStream::connect((self.host.as_ref(), 80u16))?;
-        c.write(format!(
+        c.write_all(format!(
             "GET {} HTTP/1.0\r\nHost: {}\r\n\r\n",
             self.path, self.host,
         ).as_ref())?;
@@ -62,11 +62,11 @@ pub struct Response {
 
 impl Response {
     fn read_from<B: BufRead>(c: &mut B) -> Result<Self> {
-        let status = Response::read_status_line(c)?;
+        let status_code = Response::read_status_line(c)?;
         let headers = Response::read_headers(c)?;
         Ok(Response {
-            status_code: status,
-            headers: headers,
+            status_code,
+            headers,
         })
     }
 
@@ -86,12 +86,12 @@ impl Response {
         loop {
             let mut line = String::new();
             c.read_line(&mut line)?;
-            if line.trim().len() == 0 {
+            if line.trim().is_empty() {
                 break;
             }
             // FIXME continuation lines
 
-            let pieces = line.splitn(2, ":").collect::<Vec<_>>();
+            let pieces = line.splitn(2, ':').collect::<Vec<_>>();
             assert!(pieces.len() == 2);
             headers.insert(
                 pieces[0].trim().into(),

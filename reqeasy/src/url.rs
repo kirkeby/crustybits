@@ -21,7 +21,9 @@ impl Url {
                 let scheme = replace(&mut m.captured[0], String::new());
                 let host = replace(&mut m.captured[1], String::new());
                 let mut path = replace(&mut m.captured[2], String::new());
-                if path.len() == 0 { path.push('/') }
+                if path.is_empty() {
+                    path.push('/');
+                }
                 Ok(Url { scheme, host, path })
             }
             _ => Err(Error {}), // invalid URL

@@ -90,7 +90,7 @@ impl MatchData {
         };
         wrap_errno(err)?;
 
-        len = len + 1;
+        len += 1;  // reserve space for NUL byte
         let mut buf = Vec::with_capacity(len);
         let err = unsafe {
             ffi::pcre2_substring_copy_bynumber_8(
