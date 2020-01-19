@@ -5,10 +5,13 @@ pub struct Code {
     ptr: ffi::RePtr,
 }
 
-// TODO: use &[u8] instead of &str's?
 impl Code {
     /// Compile a string into a regular expression.
-    pub fn compile(s: &str) -> Result<Self> {
+    pub fn compile<S: AsRef<[u8]>>(s: S) -> Result<Self> {
+        Code::compile_(s.as_ref())
+    }
+
+    fn compile_(s: &[u8]) -> Result<Self> {
         let mut errno = 0;
         let mut offset = 0;
         let ptr = unsafe {
@@ -24,8 +27,12 @@ impl Code {
         Ok(Code { ptr })
     }
 
+    pub fn search<S: AsRef<[u8]>>(&self, s: S) -> Option<Match> {
+        self.search_(s.as_ref())
+    }
+
     /// Find first match of regular expression in string `s`.
-    pub fn search(&self, s: &str) -> Option<Match> {
+    fn search_(&self, s: &[u8]) -> Option<Match> {
         let match_data = MatchData::from_pattern(&self);
         let result = unsafe {
             ffi::pcre2_match_8(
