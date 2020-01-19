@@ -10,8 +10,7 @@ impl Re {
     }
 
     pub fn search(&self, s: &str) -> Option<Match> {
-        let m = self.compiled.search(s).expect(".search should not fail?!");
-        m.map(|m| Match {
+        self.compiled.search(s).map(|m| Match {
             matched: m.group(0).expect("BUG? .group(0) failed"),
             captured: m.groups().expect("BUG? .groups() failed"),
         })
